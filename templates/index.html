@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Prediction Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.18.2/plotly.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+            --danger-color: #e74c3c;
+            --light-color: #f5f7fa;
+            --dark-color: #2c3e50;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--light-color) 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        .dashboard-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 
+                0 8px 32px rgba(31, 38, 135, 0.15),
+                0 2px 8px rgba(31, 38, 135, 0.1);
+            padding: 2rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .dashboard-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 12px 40px rgba(31, 38, 135, 0.2),
+                0 4px 12px rgba(31, 38, 135, 0.15);
+        }
+
+        .dashboard-title {
+            color: var(--primary-color);
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .dashboard-title:after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 3px;
+            background: var(--accent-color);
+            margin: 10px auto;
+        }
+
+        .input-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-control {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+            outline: none;
+        }
+
+        .btn-predict {
+            background: var(--accent-color);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-predict:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-predict:active {
+            transform: translateY(0);
+        }
+
+        .btn-predict:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        #loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 1000;
+        }
+
+        .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .loader i {
+            color: var(--accent-color);
+            font-size: 3rem;
+            animation: spin 1s infinite linear;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        .stock-table {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background: white;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            z-index: 1;
+            padding: 1rem;
+        }
+
+        .table tbody td {
+            padding: 0.75rem;
+            vertical-align: middle;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            height: 400px;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            width: calc(100% - 2rem);
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-suggestion {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .autocomplete-suggestion:hover {
+            background-color: #f8f9fa;
+            color: var(--accent-color);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .error-notification {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .success-notification {
+            background: var(--success-color);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                margin-top: 1rem;
+                padding: 1rem;
+            }
+
+            .chart-container {
+                height: 300px;
+                margin-top: 1rem;
+            }
+
+            .stock-table {
+                max-height: 300px;
+            }
+
+            .stats-card {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container dashboard-container animate__animated animate__fadeIn">
+        <h1 class="dashboard-title">Stock Analysis & Prediction Dashboard</h1>
+        
+        <div class="row">
+            <div class="col-lg-3">
+                <div class="input-section animate__animated animate__fadeInLeft">
+                    <div class="mb-3">
+                        <label for="ticker" class="form-label">
+                            <i class="fas fa-search"></i> Stock Ticker
+                        </label>
+                        <input type="text" class="form-control" id="ticker" placeholder="Enter stock symbol (e.g., AAPL)" autocomplete="off">
+                        <div id="suggestions" class="autocomplete-suggestions"></div>
+                    </div>
+
+                    <button id="predict" class="btn btn-predict mb-3">
+                        <i class="fas fa-chart-line me-2"></i> Analyze Stock
+                    </button>
+
+                    <div class="stock-metrics mb-3">
+                        <div class="stats-card">
+                            <div class="metric-value" id="current-price">-</div>
+                            <div class="metric-label">Current Price</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="metric-value" id="predicted-change">-</div>
+                            <div class="metric-label">Predicted Change</div>
+                        </div>
+                    </div>
+
+                    <div class="stock-table">
+                        <h5 class="p-3 mb-0 border-bottom"><i class="fas fa-history"></i> Historical Data</h5>
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Open</th>
+                                    <th>Close</th>
+                                    <th>High</th>
+                                    <th>Low</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <div id="loading">
+                    <div class="loader">
+                        <i class="fas fa-spinner"></i>
+                        <p>Analyzing stock data...</p>
+                    </div>
+                </div>
+                
+                <div class="chart-container animate__animated animate__fadeInRight">
+                    <div id="line-chart"></div>
+                </div>
+                
+                <div class="chart-container animate__animated animate__fadeInRight">
+                    <div id="bar-chart"></div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <div class="metric-value" id="accuracy">-</div>
+                            <div class="metric-label">Model Accuracy</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <div class="metric-value" id="mse">-</div>
+                            <div class="metric-label">Mean Square Error</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <div class="metric-value" id="trend">-</div>
+                            <div class="metric-label">Trend Direction</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script>
+        const sampleStocks = [
+            'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NFLX', 'NVDA', 'JPM', 'META', 'AMD',
+            'INTC', 'CSCO', 'ORCL', 'IBM', 'UBER', 'LYFT', 'SNAP', 'TWTR', 'SPOT', 'ZM'
+        ];
+
+        function showNotification(message, type = 'success') {
+            const notification = $('#notification');
+            notification.text(message)
+                .removeClass('error-notification success-notification')
+                .addClass(`${type}-notification`)
+                .fadeIn();
+
+            setTimeout(() => notification.fadeOut(), 3000);
+        }
+
+        function animateOnScroll() {
+            $('.animate__animated:not(.animate__fadeIn)').each(function() {
+                const elementTop = $(this).offset().top;
+                const windowHeight = $(window).height();
+                const scrollTop = $(window).scrollTop();
+                
+                if (elementTop < (scrollTop + windowHeight - 100)) {
+                    $(this).addClass('animate__fadeIn');
+                }
+            });
+        }
+
+        $('#ticker').on('input', function() {
+            const query = $(this).val().toUpperCase();
+            if (query.length > 0) {
+                const filteredStocks = sampleStocks.filter(stock => 
+                    stock.includes(query)
+                ).slice(0, 5);
+
+                $('#suggestions').empty().show();
+                filteredStocks.forEach(stock => {
+                    $('#suggestions').append(`
+                        <div class="autocomplete-suggestion">
+                            <i class="fas fa-chart-line"></i>
+                            <span>${stock}</span>
+                        </div>
+                    `);
+                });
+            } else {
+                $('#suggestions').empty().hide();
+            }
+        });
+
+        $(document).on('click', '.autocomplete-suggestion', function() {
+            $('#ticker').val($(this).text().trim());
+            $('#suggestions').empty().hide();
+        });
+
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.autocomplete-suggestions, #ticker').length) {
+                $('#suggestions').empty().hide();
+            }
+        });
+
+        $('#predict').click(function() {
+            const ticker = $('#ticker').val().trim().toUpperCase();
+            if (!ticker) {
+                showNotification('Please enter a stock ticker', 'error');
+                return;
+            }
+
+            if (!sampleStocks.includes(ticker)) {
+                showNotification('Invalid stock ticker', 'error');
+                return;
+            }
+
+            $('#predict').prop('disabled', true);
+            $('#loading').fadeIn();
+            
+            // Simulate API call with mock data for demonstration
+            setTimeout(() => {
+                try {
+                    const mockData = generateMockData(ticker);
+                    updateDashboard(mockData);
+                    showNotification(`Successfully analyzed ${ticker} stock data`, 'success');
+                } catch (error) {
+                    showNotification('Error analyzing stock data', 'error');
+                    console.error(error);
+                } finally {
+                    $('#loading').fadeOut();
+                    $('#predict').prop('disabled', false);
+                }
+            }, 1500);
+        });
+
+        function generateMockData(ticker) {
+            const dates = [];
+            const historicalPrices = [];
+            const predictions = [];
+            const historicalData = [];
+            
+            // Base price varies by ticker to make it more realistic
+            const basePrice = {
+                'AAPL': 150,
+                'GOOGL': 2800,
+                'MSFT': 300,
+                'AMZN': 3300,
+                'TSLA': 800
+            }[ticker] || 100;
+            
+            // Generate 30 days of mock data
+            for (let i = 30; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toISOString().split('T')[0]);
+                
+                const volatility = 0.02; // 2% daily volatility
+                const dailyChange = (Math.random() - 0.5) * volatility;
+                const price = basePrice * (1 + dailyChange);
+                historicalPrices.push(price);
+                
+                if (i < 7) { // Predictions for next 7 days
+                    const predictionNoise = (Math.random() - 0.5) * 0.03;
+                    predictions.push(price * (1 + predictionNoise));
+                }
+                
+                historicalData.push({
+                    date: date.toISOString().split('T')[0],
+                    Open: price * (1 - Math.random() * 0.01),
+                    Close: price,
+                    High: price * (1 + Math.random() * 0.01),
+                    Low: price * (1 - Math.random() * 0.01)
+                });
+            }
+
+            return {
+                ticker,
+                dates,
+                historicalPrices,
+                predictions,
+                historicalData,
+                metrics: {
+                    accuracy: (75 + Math.random() * 10).toFixed(2),
+                    mse: (0.5 + Math.random() * 0.5).toFixed(4),
+                    trend: Math.random() > 0.5 ? 'Bullish' : 'Bearish'
+                }
+            };
+        }
+
+        function updateDashboard(data) {
+            // Update metrics
+            const lastPrice = data.historicalPrices[data.historicalPrices.length - 1];
+            const predictedPrice = data.predictions[data.predictions.length - 1];
+            const priceChange = ((predictedPrice - lastPrice) / lastPrice * 100).toFixed(2);
+            
+            $('#current-price').text(`$${lastPrice.toFixed(2)}`);
+            $('#predicted-change').text(`${priceChange}%`)
+                .css('color', priceChange >= 0 ? 'var(--success-color)' : 'var(--danger-color)');
+            
+            // Update model metrics
+            $('#accuracy').text(`${data.metrics.accuracy}%`);
+            $('#mse').text(data.metrics.mse);
+            $('#trend').text(data.metrics.trend)
+                .css('color', data.metrics.trend === 'Bullish' ? 'var(--success-color)' : 'var(--danger-color)');
+
+            // Update table
+            let tableContent = '';
+            data.historicalData.forEach((row, index) => {
+                const changeColor = row.Close >= row.Open ? 'var(--success-color)' : 'var(--danger-color)';
+                tableContent += `
+                    <tr class="animate__animated animate__fadeIn" style="animation-delay: ${index * 50}ms">
+                        <td>${row.date}</td>
+                        <td>$${row.Open.toFixed(2)}</td>
+                        <td style="color: ${changeColor}">$${row.Close.toFixed(2)}</td>
+                        <td>$${row.High.toFixed(2)}</td>
+                        <td>$${row.Low.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            $('#table-body').html(tableContent);
+
+            // Plot charts
+            const layout = {
+                template: 'plotly_white',
+                showlegend: true,
+                legend: { orientation: 'h', y: -0.2 },
+                margin: { t: 30 },
+                xaxis: {
+                    title: 'Date',
+                    gridcolor: '#f0f0f0'
+                },
+                yaxis: {
+                    title: 'Price ($)',
+                    gridcolor: '#f0f0f0'
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                hovermode: 'x unified'
+            };
+
+            // Line chart with historical data and predictions
+            Plotly.newPlot('line-chart', [{
+                x: data.dates,
+                y: data.historicalPrices,
+                mode: 'lines',
+                name: 'Historical',
+                line: { color: 'var(--accent-color)', width: 2 }
+            }, {
+                x: data.dates.slice(-7),
+                y: data.predictions,
+                mode: 'lines+markers',
+                name: 'Predictions',
+                line: { color: 'var(--success-color)', width: 2, dash: 'dash' },
+                marker: { size: 8, symbol: 'diamond' }
+            }], {
+                ...layout,
+                title: {
+                    text: `${data.ticker} Stock Price Analysis`,
+                    font: { size: 16 }
+                }
+            });
+
+            // Volume bar chart (using mock volume data)
+            const volumeData = data.historicalPrices.map(price => 
+                Math.floor(price * (1000 + Math.random() * 500))
+            );
+            
+            Plotly.newPlot('bar-chart', [{
+                x: data.dates,
+                y: volumeData,
+                type: 'bar',
+                name: 'Volume',
+                marker: {
+                    color: volumeData.map((_, i) => 
+                        data.historicalPrices[i] > (data.historicalPrices[i-1] || 0) 
+                            ? 'var(--success-color)' 
+                            : 'var(--danger-color)'
+                    ),
+                    opacity: 0.7
+                }
+            }], {
+                ...layout,
+                title: {
+                    text: `${data.ticker} Trading Volume`,
+                    font: { size: 16 }
+                },
+                yaxis: {
+                    title: 'Volume',
+                    gridcolor: '#f0f0f0'
+                }
+            });
+        }
+
+        // Handle keyboard navigation in suggestions
+        $('#ticker').on('keydown', function(e) {
+            const suggestions = $('.autocomplete-suggestion');
+            const current = $('.autocomplete-suggestion.selected');
+            
+            if (suggestions.length) {
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (current.length === 0) {
+                            suggestions.first().addClass('selected');
+                        } else {
+                            current.removeClass('selected')
+                                .next('.autocomplete-suggestion')
+                                .addClass('selected');
+                        }
+                        break;
+                    
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (current.length === 0) {
+                            suggestions.last().addClass('selected');
+                        } else {
+                            current.removeClass('selected')
+                                .prev('.autocomplete-suggestion')
+                                .addClass('selected');
+                        }
+                        break;
+                    
+                    case 'Enter':
+                        e.preventDefault();
+                        if (current.length) {
+                            $('#ticker').val(current.text().trim());
+                            $('#suggestions').empty().hide();
+                        }
+                        break;
+                    
+                    case 'Escape':
+                        $('#suggestions').empty().hide();
+                        break;
+                }
+            }
+        });
+
+        // Window resize handler for responsive charts
+        let resizeTimeout;
+        $(window).on('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                const lineChart = document.getElementById('line-chart');
+                const barChart = document.getElementById('bar-chart');
+                
+                if (lineChart && barChart) {
+                    Plotly.Plots.resize(lineChart);
+                    Plotly.Plots.resize(barChart);
+                }
+            }, 250);
+        });
+
+        // Initial animation on page load
+        $(document).ready(function() {
+            animateOnScroll();
+            $(window).on('scroll', animateOnScroll);
+        });
+    </script>
+</body>
+</html>
